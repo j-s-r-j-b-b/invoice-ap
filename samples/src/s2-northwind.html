@@ -1,0 +1,34 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Northwind Invoice</title><style>
+@page{size:A4;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0}
+body{width:210mm;height:297mm;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+body{font-family:Arial,Helvetica,sans-serif;font-size:9.5pt;color:#111;padding:27mm 13mm 12mm;position:relative}
+.stamp{position:absolute;top:7mm;left:62mm;transform:rotate(-7deg);border:4px double #d0141a;color:#d0141a;font-weight:900;font-size:24pt;letter-spacing:3px;padding:4px 16px;opacity:.82;font-family:Impact,'Arial Black',sans-serif;z-index:5}
+.hdr{display:flex;border:2px solid #0b5563}
+.hl{flex:1.4;padding:10px;display:flex;gap:10px;align-items:center;border-right:2px solid #0b5563}
+.truck{width:56px;height:56px;background:#0b5563;color:#ffb000;font-weight:900;font-size:15pt;display:flex;align-items:center;justify-content:center}
+.vn{font-size:15pt;font-weight:900;color:#0b5563;text-transform:uppercase}
+.hr{flex:1;background:#0b5563;color:#fff;display:flex;flex-direction:column;justify-content:center;align-items:center}
+.hr h1{margin:0;font-size:18pt;letter-spacing:2px}
+table{border-collapse:collapse;width:100%}
+td,th{border:1px solid #0b5563;padding:5px 7px;vertical-align:top}
+.k{background:#e3f0f2;font-weight:bold;width:30mm}
+.items th{background:#ffb000;color:#111;font-size:9pt}
+.r{text-align:right}.c{text-align:center}
+.sec{margin-top:4mm}
+.tot td{font-size:10pt}.tot .g td{font-weight:bold;font-size:11.5pt;background:#e3f0f2}
+.small{font-size:8.5pt}
+.sign{height:28mm;text-align:right;vertical-align:bottom}</style></head><body>
+<div class="stamp">PAYMENT REMINDER</div>
+<div class="hdr"><div class="hl"><div class="truck">NW</div><div><div class="vn">Northwind Logistics LLP</div>88 Peenya Industrial Area, Phase 2, Bengaluru 560058<br>GSTIN: <b>29AAFFN5678K1Z2</b> &nbsp; Ph: +91 80 4123 7788<br>billing@northwindlogistics.co.in</div></div>
+<div class="hr"><h1>TAX INVOICE</h1><div class="small">(Goods Transport Agency)</div></div></div>
+<table class="sec"><tr><td class="k">Invoice No</td><td><b>INV1042-A</b></td><td class="k">Invoice Date</td><td>29/09/2026</td></tr>
+<tr><td class="k">Customer PO</td><td>PO-4388</td><td class="k">Due Date</td><td>14/10/2026</td></tr>
+<tr><td class="k">Billed To</td><td colspan="3"><b>Meridian Retail Pvt Ltd</b>, Unit 4, Lotus Corporate Park, Goregaon East, Mumbai 400063<br>GSTIN: 27AAECM4321J1Z3 &nbsp;&nbsp; Place of Supply: Maharashtra (27)</td></tr></table>
+<table class="sec items"><thead><tr><th>S.No</th><th>Particulars</th><th>SAC</th><th>Qty</th><th>Rate (₹)</th><th>Amount (₹)</th></tr></thead><tbody><tr><td class="c">1</td><td>FTL freight Mumbai → Pune (32 ft container)</td><td class="c">996511</td><td class="c">6 Trip</td><td class="r">18,500.00</td><td class="r">1,11,000.00</td></tr><tr><td class="c">2</td><td>Loading & unloading charges</td><td class="c">996719</td><td class="c">6 Trip</td><td class="r">2,000.00</td><td class="r">12,000.00</td></tr>
+<tr><td colspan="6" style="height:62mm;border-top:none"></td></tr></tbody></table>
+<table class="tot"><tr><td rowspan="3" style="width:60%" class="small"><b>Amount in words:</b><br>Rupees One Lakh Forty Five Thousand One Hundred Forty Only<br><br>Tax payable on reverse charge: No</td><td>Taxable Value</td><td class="r">1,23,000.00</td></tr>
+<tr><td>IGST @ 18%</td><td class="r">22,140.00</td></tr>
+<tr class="g"><td>Grand Total (₹)</td><td class="r">1,45,140.00</td></tr></table>
+<table class="sec"><tr><td style="width:60%" class="small"><b>Bank Details</b><br>ICICI Bank, Peenya Branch, Bengaluru<br>A/c No: 039105001842 &nbsp; IFSC: ICIC0000391<br><br><b>Terms &amp; Conditions</b><br>1. Payment within 15 days of invoice.<br>2. Claims for damage/shortage must be raised within 7 days of delivery.<br>3. Subject to Bengaluru jurisdiction.</td>
+<td class="sign">For Northwind Logistics LLP<br><br><br><br>Authorised Signatory</td></tr></table></body></html>

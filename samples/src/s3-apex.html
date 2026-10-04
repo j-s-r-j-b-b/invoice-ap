@@ -1,0 +1,36 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Apex Invoice</title><style>
+@page{size:A4;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0}
+body{width:210mm;height:297mm;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+body{font-family:Calibri,'Segoe UI',sans-serif;font-size:11pt;color:#2a2a35;display:flex}
+.side{width:9mm;background:linear-gradient(#6c3bd1,#2fb5c9)}
+.main{flex:1;padding:16mm 15mm 12mm 13mm;position:relative}
+.top{display:flex;justify-content:space-between}
+.brand{font-size:20pt;font-weight:700;color:#6c3bd1;letter-spacing:-.5px}.brand span{color:#2fb5c9}
+.addr{font-size:9.5pt;color:#666;line-height:1.45}
+.big{font-size:34pt;font-weight:300;color:#2a2a35;text-align:right;line-height:1}
+.inv{font-size:9.5pt;color:#666;text-align:right;margin-top:4px}
+.strip{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin:11mm 0 9mm;border-top:1px solid #ddd;border-bottom:1px solid #ddd}
+.strip div{padding:8px 0}.strip .l{font-size:8.5pt;color:#888;text-transform:uppercase;letter-spacing:1px}.strip .v{font-weight:700;font-size:11pt}
+.bill{font-size:10pt;line-height:1.5;margin-bottom:9mm}.bill .l{font-size:8.5pt;color:#888;text-transform:uppercase;letter-spacing:1px}
+table{width:100%;border-collapse:collapse}
+th{font-size:8.5pt;color:#6c3bd1;text-transform:uppercase;letter-spacing:1px;text-align:left;padding:6px 4px;border-bottom:2px solid #6c3bd1}
+td{padding:10px 4px;border-bottom:1px solid #eee}
+.r{text-align:right}
+.tot{width:80mm;margin:6mm 0 0 auto}.tot td{border:none;padding:5px 4px}
+.tot .g td{font-size:15pt;font-weight:700;color:#6c3bd1;border-top:2px solid #6c3bd1;padding-top:8px}
+.words{font-size:9.5pt;color:#666;margin-top:3mm;text-align:right}
+.bot{display:flex;justify-content:space-between;margin-top:14mm;font-size:9pt;color:#555;line-height:1.5}
+.sig{text-align:center}.sig .ln{border-top:1px solid #999;width:50mm;margin-top:16mm;padding-top:3px}
+.foot{position:absolute;bottom:10mm;left:13mm;right:15mm;font-size:8pt;color:#aaa;display:flex;justify-content:space-between}</style></head><body><div class="side"></div><div class="main">
+<div class="top"><div><div class="brand">apex<span>cloud</span></div><div class="addr"><b>Apex Cloud Services Pvt Ltd</b><br>4th Floor, Ambience Tower, Nehru Place, New Delhi 110019<br>GSTIN 07AAKCA9012M1Z8 · CIN U72900DL2015PTC283114</div></div>
+<div><div class="big">Invoice</div><div class="inv">Tax Invoice · APX-INV-0957</div></div></div>
+<div class="strip"><div><div class="l">Invoice date</div><div class="v">25 September 2026</div></div><div><div class="l">Due date</div><div class="v">25 October 2026</div></div><div><div class="l">Purchase order</div><div class="v">PO-2207</div></div><div><div class="l">Amount due</div><div class="v">₹2,30,100.00</div></div></div>
+<div class="bill"><div class="l">Billed to</div><b>Meridian Retail Pvt Ltd</b><br>Unit 4, Lotus Corporate Park, Goregaon East, Mumbai 400063<br>GSTIN 27AAECM4321J1Z3 · Place of supply: Maharashtra (27)</div>
+<table><thead><tr><th>Service</th><th>SAC</th><th class="r">Qty</th><th class="r">Unit price</th><th class="r">Amount</th></tr></thead>
+<tbody><tr><td>Managed cloud operations — Milestone 3 (September 2026)<br><span style="font-size:9pt;color:#888">24x7 monitoring, patching, backup &amp; incident response — per SOW dated 02 June 2026</span></td><td>998316</td><td class="r">1</td><td class="r">₹1,95,000.00</td><td class="r">₹1,95,000.00</td></tr></tbody></table>
+<table class="tot"><tr><td>Subtotal</td><td class="r">₹1,95,000.00</td></tr><tr><td>IGST (18%)</td><td class="r">₹35,100.00</td></tr><tr class="g"><td>Total</td><td class="r">₹2,30,100.00</td></tr></table>
+<div class="words">Rupees Two Lakh Thirty Thousand One Hundred Only</div>
+<div class="bot"><div><b>Pay by NEFT / RTGS</b><br>Kotak Mahindra Bank, Nehru Place<br>Account: 7412638590 · IFSC: KKBK0000214<br><br><b>Terms</b><br>Net 30. Please quote the invoice number with your remittance.<br>Late payments attract interest at 1.5% per month.</div>
+<div class="sig">for Apex Cloud Services Pvt Ltd<div class="ln">Authorised Signatory</div></div></div>
+<div class="foot"><span>billing@apexcloud.in · +91 11 4055 2200</span><span>Page 1 of 1</span></div></div></body></html>

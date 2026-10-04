@@ -1,0 +1,8 @@
+{
+  "name": "invoice-ap",
+  "private": true,
+  "type": "module",
+  "scripts": { "dev": "node dev.mjs" },
+  "dependencies": { "@anthropic-ai/sdk": "^0.131.0" },
+  "engines": { "node": ">=20" }
+}
