@@ -172,7 +172,6 @@ main { min-width: 0; }
 .run-grid { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 16px; align-items: start; }
 .run-main { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .run-side { display: flex; flex-direction: column; gap: 12px; position: sticky; top: 16px; }
-.doc iframe { width: 100%; height: 520px; border: 0; display: block; border-radius: 0 0 var(--r) var(--r); background: #525659; }
 .decision { overflow: hidden; border-width: 1px; animation: rise .35s ease; }
 .decision .dec-body { display: flex; gap: 14px; padding: 18px 20px; }
 .decision h2 { font-size: 22px; margin: 1px 0 4px; }
@@ -250,4 +249,39 @@ main { min-width: 0; }
   .rule { flex-direction: column; align-items: flex-start; }
   .checks, .details { padding-left: 0; margin-left: 0; }
   .disclose { margin-left: 0; }
+}
+
+/* --- v2: inbox, vendor-hold state, document viewer --- */
+:root { --hold: #6941C6; --hold-bg: #F2EEFC; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --hold: #B69CF5; --hold-bg: #251D3A; } }
+.pill.hold { background: var(--hold-bg); color: var(--hold); }
+.decision.hold { border-color: color-mix(in srgb, var(--hold) 40%, var(--line)); }
+.decision.hold .dec-body { background: var(--hold-bg); }
+.decision.hold .dec-ic { background: var(--hold); }
+.decision.hold h2 { color: var(--hold); }
+.dot.bad { background: var(--bad); }
+.nav-n { margin-left: auto; font-style: normal; font-size: 11.5px; font-weight: 600; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 99px; display: grid; place-items: center; background: var(--warn-bg); color: var(--warn); }
+nav a.on .nav-n { background: var(--surface); }
+.mail { overflow: hidden; }
+.mail-row { display: grid; grid-template-columns: 38px minmax(0, 1fr) 220px; gap: 14px; padding: 14px 18px; border-bottom: 1px solid var(--line-2); align-items: start; }
+.mail-row:last-child { border-bottom: 0; }
+.mail-row.new { background: linear-gradient(90deg, var(--brand-2) 0 3px, transparent 3px); }
+.mail-row.new .subj { font-weight: 600; }
+.avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--line); display: grid; place-items: center; font-weight: 600; color: var(--text-2); }
+.mail-main { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.subj { font-size: 14px; }
+.snippet { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.attach { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; padding: 4px 9px; border: 1px solid var(--line); border-radius: 7px; font-size: 12.5px; color: var(--text-2); align-self: flex-start; background: var(--surface-2); }
+.mail-act { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; padding-top: 2px; }
+.dropmask { position: fixed; inset: 0; background: color-mix(in srgb, var(--brand) 12%, transparent); border: 3px dashed var(--brand); z-index: 40; display: grid; place-items: center; pointer-events: none; }
+.dropmask div { background: var(--surface); padding: 20px 28px; border-radius: 12px; display: flex; gap: 12px; align-items: center; color: var(--brand); box-shadow: 0 10px 40px rgba(0,0,0,.15); }
+.docview { max-height: 640px; overflow: auto; background: #E9EBEF; border-radius: 0 0 var(--r) var(--r); }
+.docview .pages { display: flex; flex-direction: column; gap: 8px; padding: 10px; }
+.docview canvas, .docview img { width: 100%; height: auto; display: block; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.hist li { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.hist time { font-size: 12px; color: var(--text-3); width: 92px; }
+@media (max-width: 820px) {
+  .mail-row { grid-template-columns: 32px minmax(0, 1fr); }
+  .mail-act { grid-column: 2; align-items: flex-start; flex-direction: row; flex-wrap: wrap; }
 }

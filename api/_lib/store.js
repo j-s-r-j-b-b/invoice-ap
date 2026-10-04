@@ -59,7 +59,11 @@ export async function listRuns() {
   const d = readFile(); return ids.map((i) => d['run:' + i]).filter(Boolean);
 }
 
+// Original documents, so a case can always show what was received (skipped if too large for the free DB tier).
+export async function saveFile(id, file) { if (file.base64.length < 750000) await set('file:' + id, file); }
+export async function getFile(id) { return get('file:' + id); }
+
 export async function resetAll() {
   const ids = await listRunIds();
-  await del([...ids.map((i) => 'run:' + i), 'runs', 'ledger', 'rules']);
+  await del([...ids.map((i) => 'run:' + i), ...ids.map((i) => 'file:' + i), 'runs', 'ledger', 'rules']);
 }

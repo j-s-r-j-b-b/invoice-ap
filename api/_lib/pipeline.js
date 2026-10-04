@@ -5,7 +5,6 @@
 import crypto from 'node:crypto';
 import { COMPANY, VENDORS, PURCHASE_ORDERS, GOODS_RECEIPTS } from './seed.js';
 import { extract, extractorKind } from './extract.js';
-import { sampleById, cachedExtraction } from './samples.js';
 
 // ---------- helpers ----------
 const r2 = (n) => Math.round(n * 100) / 100;
@@ -42,6 +41,10 @@ function stageResult(checks, summary, details = {}) {
 
 // ---------- stages ----------
 async function intake(ctx) {
+  if (ctx.previousRead) {
+    ctx.hash = ctx.input.hash; ctx.format = ctx.input.format;
+    return stageResult([{ level: 'pass', code: 'received', msg: `${ctx.input.filename} · ${ctx.format} · re-check of case ${ctx.caseId}` }], ctx.format, { filename: ctx.input.filename, format: ctx.format });
+  }
   const buf = Buffer.from(ctx.input.base64, 'base64');
   const hash = crypto.createHash('sha256').update(buf).digest('hex');
   let format = ctx.input.mimeType.startsWith('image/') ? 'Image file' : 'PDF';
@@ -59,25 +62,25 @@ async function intake(ctx) {
 }
 
 async function read(ctx) {
-  const sample = ctx.input.sampleId && sampleById(ctx.input.sampleId);
   const checks = [];
   let data, source;
-  const wantCache = ctx.input.mode === 'cached' || !extractorKind();
-  if (sample && wantCache) {
-    data = cachedExtraction(sample); source = 'Stored reading (offline demo mode)';
-    checks.push({ level: 'info', code: 'cached', msg: extractorKind() ? 'Offline demo mode: used the stored AI reading for this sample.' : 'No AI key configured: used the stored AI reading for this sample.' });
+  if (ctx.previousRead) {
+    // Re-check of an existing case: the document hasn't changed, so reuse what was read and re-apply the rules.
+    data = ctx.previousRead.details.fields;
+    source = ctx.previousRead.details.source + ' (re-used)';
+    checks.push({ level: 'info', code: 'reused', msg: 'Same document as before — re-using the earlier reading and applying the current rules.' });
   } else {
+    if (!extractorKind()) {
+      checks.push({ level: 'block', code: 'unreadable', msg: 'No AI service is configured on the server, so the document could not be read. Route to manual data entry.' });
+      return stageResult(checks, 'Could not read document', {});
+    }
     try {
       const t = Date.now();
       const out = await extract(ctx.input);
       data = out.data; source = `${out.model} · ${((Date.now() - t) / 1000).toFixed(1)}s`;
     } catch (e) {
-      if (!sample) {
-        checks.push({ level: 'block', code: 'unreadable', msg: `Could not read this document (${e.message}). Route to manual data entry.` });
-        return stageResult(checks, 'Could not read document', { error: e.message });
-      }
-      data = cachedExtraction(sample); source = 'Stored reading (AI call failed)';
-      checks.push({ level: 'info', code: 'fallback', msg: `AI call failed (${e.message}) — fell back to the stored reading for this sample.` });
+      checks.push({ level: 'block', code: 'unreadable', msg: `Could not read this document (${e.message}). Route to manual data entry.` });
+      return stageResult(checks, 'Could not read document', { error: e.message });
     }
   }
   ctx.x = data;
@@ -256,6 +259,20 @@ async function match(ctx) {
     }
     rows.push(row);
   });
+  // Bundled invoice: vendor billed the whole order as one lump line. Line-level matching is
+  // impossible, so match on value instead (whole PO, or the remaining balance) and say so.
+  const unmatched = rows.filter((r) => !r.po);
+  const valueNow = poValue(po), remainingNow = valueNow - prior.reduce((s, l) => s + l.subtotal, 0);
+  const tolAmt = (v) => v * (R.priceTolerancePct / 100) + R.amountMatchTolerance;
+  if (unmatched.length && unmatched.length === rows.length && po.lines.length > 1 &&
+      (near(ctx.subtotal, valueNow, tolAmt(valueNow)) || near(ctx.subtotal, remainingNow, tolAmt(remainingNow)))) {
+    for (let i = checks.length - 1; i >= 0; i--) if (checks[i].code === 'line_not_on_po') checks.splice(i, 1);
+    checks.push({ level: 'info', code: 'bundled', msg: `Invoice bundles the order into ${rows.length} line(s) instead of itemising ${po.lines.length} PO lines — matched on value instead: ${inr(ctx.subtotal)} vs ${inr(near(ctx.subtotal, valueNow, tolAmt(valueNow)) ? valueNow : remainingNow)}.` });
+    if (po.type === 'goods') {
+      const short = po.lines.filter((pl) => grn.flatMap((g) => g.lines).filter((gl) => gl.line === pl.line).reduce((s, g) => s + g.qty, 0) < pl.qty);
+      if (grn.length && short.length) checks.push({ level: 'warn', code: 'qty_over_received', msg: `Bundled bill covers the full order, but ${short.map((s) => s.description).join(', ')} not fully received.`, vendorAsk: 'Your invoice bills the full order, but not all items have been received yet.' });
+    }
+  }
   if (po.type === 'goods' && !grn.length) checks.push({ level: 'warn', code: 'no_grn', msg: `No goods receipt recorded for ${po.po} — confirm delivery with the warehouse before paying.` });
   if (po.type === 'goods' && grn.length) checks.push({ level: 'pass', code: 'grn', msg: `Goods receipt ${grn.map((g) => g.grn).join(', ')} found (${grn[0].date}).` });
   // cumulative billing against PO value
@@ -280,10 +297,10 @@ async function duplicates(ctx) {
   const vkey = ctx.vendor ? ctx.vendor.id : normName(x.vendor_name);
   const pool = [
     ...ctx.ledger.map((l) => ({ ...l, vkey: l.vendorId, where: l.source === 'ERP history' ? `ERP history (${l.status})` : `run ${l.runId}` })),
-    ...ctx.runs.filter((r) => r.decision?.status === 'needs_review').map((r) => ({ vkey: r.vendorId || normName(r.vendorName), invoiceNumber: r.invoiceNumber, total: r.total, date: r.invoiceDate, where: `review queue (run ${r.id})`, runId: r.id })),
+    ...ctx.runs.filter((r) => PENDING.includes(r.decision?.status)).map((r) => ({ vkey: r.vendorId || normName(r.vendorName), invoiceNumber: r.invoiceNumber, total: r.total, date: r.invoiceDate, where: `open case ${r.id} (${r.decision.label.toLowerCase()})`, runId: r.id })),
   ];
   const sameFile = ctx.runs.find((r) => r.source?.hash === ctx.hash);
-  if (sameFile) checks.push({ level: 'block', code: 'dup_file', atRisk: x.total, msg: `This exact file was already processed in run ${sameFile.id} (${sameFile.decision?.label || 'earlier'}).`, ref: sameFile.id });
+  if (sameFile) checks.push({ level: 'block', code: 'dup_file', atRisk: x.total, msg: `This exact file was already received as case ${sameFile.id} (${sameFile.decision?.label || 'earlier'}).`, ref: sameFile.id });
   const n = normInvNo(x.invoice_number);
   const numHit = n && pool.find((p) => p.vkey === vkey && normInvNo(p.invoiceNumber) === n);
   if (numHit) {
@@ -313,22 +330,34 @@ const TITLES = {
   line_not_on_po: 'Item not on the PO', price_variance: 'Price above PO rate (beyond tolerance)', qty_over_received: 'Billed more than received', qty_over_po: 'Billed more than ordered', no_grn: 'Goods receipt missing', po_overrun: 'Total billing would exceed the PO', over_limit: 'Above auto-approval limit',
   unreadable: 'Could not read the document', error: 'Processing error',
 };
+export const LABELS = { approved: 'Approved for payment', vendor_hold: 'On hold — vendor query', needs_approval: 'Needs approval', rejected: 'Rejected' };
+export const PENDING = ['vendor_hold', 'needs_approval'];
 function decide(ctx, stages) {
   const all = stages.flatMap((s) => (s.checks || []).map((c) => ({ ...c, stage: s.id })));
   const blocks = all.filter((c) => c.level === 'block'), warns = all.filter((c) => c.level === 'warn');
   const x = ctx.x || {};
-  const status = blocks.length ? 'rejected' : warns.length ? 'needs_review' : 'approved';
-  const label = { approved: 'Approved', needs_review: 'Needs review', rejected: 'Rejected' }[status];
+  // Four outcomes, mirroring how an AP team actually routes work:
+  //   rejected       – must not be paid as-is (duplicate, not a valid tax invoice, blocked vendor)
+  //   vendor_hold    – the vendor has to fix something (overcharge, overbilling, missing GST…) → query drafted
+  //   needs_approval – only an internal decision is needed (confirm inferred PO, large amount, unsure AI read)
+  //   approved       – every check passed → ready to pay
+  const unreadable = blocks.some((b) => b.code === 'unreadable');
+  const status = unreadable ? 'needs_approval' : blocks.length ? 'rejected' : warns.some((w) => w.vendorAsk) ? 'vendor_hold' : warns.length ? 'needs_approval' : 'approved';
+  const label = unreadable ? 'Manual entry needed' : LABELS[status];
   const reasons = [...blocks, ...warns];
   let headline, nextAction;
+  const due = x.due_date || (x.invoice_date && ctx.vendor ? new Date(new Date(x.invoice_date).getTime() + ctx.vendor.terms * 86400000).toISOString().slice(0, 10) : null);
   if (status === 'approved') {
-    const due = x.due_date || (x.invoice_date && ctx.vendor ? new Date(new Date(x.invoice_date).getTime() + ctx.vendor.terms * 86400000).toISOString().slice(0, 10) : null);
     headline = `All checks passed — ${inr(x.total)} to ${ctx.vendor?.name}${ctx.po ? ` against ${ctx.po.po}` : ''}.`;
-    nextAction = `Posted to the ledger and scheduled for payment${due ? ` on ${due}` : ''}.`;
+    nextAction = `Posted to the ledger. Payment due ${due || 'per vendor terms'}.`;
   } else {
     const titles = [...new Set(reasons.map((c) => TITLES[c.code] || c.msg))];
     headline = titles.slice(0, 3).join(' · ') + (titles.length > 3 ? ` · +${titles.length - 3} more` : '');
-    nextAction = status === 'rejected' ? 'Do not pay. Returned to the vendor with the reasons below.' : `Held in the review queue${warns.some((w) => w.vendorAsk) ? '; vendor query drafted' : ''}.`;
+    nextAction = {
+      rejected: 'Do not pay. Send the drafted note to the vendor so they know why.',
+      vendor_hold: 'Not paid yet. Send the drafted query; when the vendor replies, re-check or decide.',
+      needs_approval: unreadable ? 'Key the invoice in manually or try a clearer copy.' : 'An approver decides — everything they need is below.',
+    }[status];
   }
   const asks = reasons.filter((c) => c.vendorAsk);
   let email = null;
@@ -338,7 +367,7 @@ function decide(ctx, stages) {
     email = {
       to: ctx.vendor?.email || '(no email on file — vendor not onboarded)',
       subject: `${status === 'rejected' ? 'Not processed' : 'On hold'}: ${x.invoice_number || 'your bill'} — action needed`,
-      body: `Hello ${who} team,\n\nWe received ${ref}${ctx.po ? ` (${ctx.po.po})` : ''}. ${status === 'rejected' ? 'We are unable to process it' : 'It is on hold'} for the following reason${asks.length > 1 ? 's' : ''}:\n\n${asks.map((a, i) => `${i + 1}. ${a.vendorAsk}`).join('\n')}\n\nPlease reply to this email with the corrected document${asks.length > 1 ? 's' : ''} and we will process it promptly.\n\nRegards,\nAccounts Payable\n${COMPANY.name}`,
+      body: `Hello ${who} team,\n\nWe received ${ref}${ctx.po ? ` (${ctx.po.po})` : ''}. ${status === 'rejected' ? 'We are unable to process it' : 'It is on hold and has not been paid yet'} for the following reason${asks.length > 1 ? 's' : ''}:\n\n${asks.map((a, i) => `${i + 1}. ${a.vendorAsk}`).join('\n')}\n\n${status === 'rejected' ? 'Please do not resend this document; reply to this email if you believe this is in error.' : `Please reply with the corrected document${asks.length > 1 ? 's' : ''} and we will process it promptly.`}\n\nRegards,\nAccounts Payable\n${COMPANY.name}`,
     };
   }
   const internal = warns.filter((w) => !w.vendorAsk).map((w) => w.msg);
@@ -381,6 +410,7 @@ export async function runPipeline(ctx, emit) {
   const decision = decide(ctx, stages);
   await sleep(350);
   const dstage = { id: 'decide', title: 'Decision', status: decision.status === 'approved' ? 'pass' : decision.status === 'rejected' ? 'fail' : 'warn', summary: decision.label, checks: [], details: {}, ms: 0 };
+  ctx.decision = decision;
   stages.push(dstage);
   emit({ type: 'stage_done', stage: dstage });
   return { stages, decision };

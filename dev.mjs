@@ -9,7 +9,19 @@ process.chdir(root);
 for (const f of ['.env.local', '.env']) {
   try { fs.readFileSync(path.join(root, f), 'utf8').split(/\r?\n/).forEach((l) => { const m = l.match(/^\s*([\w]+)\s*=\s*(.*)\s*$/); if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, ''); }); } catch {}
 }
-const PORT = Number(process.env.PORT) || 5180;
+// DEV_FIXTURE=1: for clicking through the UI without an AI key. Returns the printed values of the
+// sample PDFs (looked up by filename) after a short delay. Local only — Vercel never runs this file.
+if (process.env.DEV_FIXTURE === '1') {
+  const { SAMPLES } = await import(pathToFileURL(path.join(root, 'api/_lib/samples.js')).href);
+  globalThis.__devExtract = async ({ filename }) => {
+    const s = SAMPLES.find((x) => x.file === filename);
+    if (!s) throw new Error('DEV_FIXTURE only knows the sample files');
+    await new Promise((r) => setTimeout(r, 2500));
+    return { data: { ...s.invoice, document_quality: s.quality, confidence: { vendor_name: 0.97, invoice_number: 0.95, invoice_date: 0.95, po_reference: 0.95, line_items: 0.9, total: 0.97 }, observations: [] }, model: 'dev fixture' };
+  };
+  console.log('DEV_FIXTURE on — AI reading is simulated');
+}
+const PORT =Number(process.env.PORT) || 5180;
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.pdf': 'application/pdf', '.png': 'image/png', '.jpg': 'image/jpeg' };
 
 http.createServer(async (req, res) => {

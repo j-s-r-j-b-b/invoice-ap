@@ -1,12 +1,12 @@
-// The six demo invoices. `invoice` is exactly what is printed on the PDF
-// (the PDFs in /samples are generated from this). `cached` is a stored AI
-// extraction used only when no AI key is configured or the AI call fails.
+// The AP inbox: six vendor emails with the invoice PDFs attached. `invoice` is exactly what is
+// printed on each PDF (the files in /samples are generated from it) — the pipeline never sees it;
+// it reads the PDF itself. kind/title/blurb are presenter notes only, not shown in the product.
 
 const BUYER = { name: 'Meridian Retail Pvt Ltd', gstin: '27AAECM4321J1Z3' };
 
 export const SAMPLES = [
   {
-    id: 's1', file: 's1-brightline.pdf', kind: 'Happy path',
+    id: 's1', email: {"fromName":"Brightline Office Supplies","from":"accounts@brightline.example","subject":"Invoice BOS/26-27/0317 — PO-4501 office consumables","receivedAt":"2026-09-28T10:14:00+05:30","body":"Dear Sir/Madam, please find attached our invoice for the Q3 restock delivered on 26 Sep against PO-4501."}, file: 's1-brightline.pdf', kind: 'Happy path',
     title: 'Clean invoice, perfect match',
     blurb: 'Office supplies. PO referenced, goods received, prices match.',
     expect: 'approved',
@@ -27,7 +27,7 @@ export const SAMPLES = [
     quality: 'clean',
   },
   {
-    id: 's2', file: 's2-northwind.pdf', kind: 'Edge case',
+    id: 's2', email: {"fromName":"Northwind Logistics","from":"billing@northwind.example","subject":"PAYMENT REMINDER — Invoice INV1042-A overdue","receivedAt":"2026-09-29T17:42:00+05:30","body":"Gentle reminder: the attached freight invoice is pending. Kindly arrange payment at the earliest."}, file: 's2-northwind.pdf', kind: 'Edge case',
     title: 'Disguised duplicate',
     blurb: 'Same freight bill as INV-1042 (already paid), resent as “INV1042-A” with a new date.',
     expect: 'rejected',
@@ -48,7 +48,7 @@ export const SAMPLES = [
     quality: 'clean',
   },
   {
-    id: 's3', file: 's3-apex.pdf', kind: 'Edge case',
+    id: 's3', email: {"fromName":"Apex Cloud Services","from":"finance@apexcloud.example","subject":"APX-INV-0957 | Managed cloud ops — Milestone 3","receivedAt":"2026-09-25T09:03:00+05:30","body":"Hi team, attaching the milestone 3 invoice for September under PO-2207. Thanks!"}, file: 's3-apex.pdf', kind: 'Edge case',
     title: 'One PO, billed in parts — overrun',
     blurb: '3rd milestone invoice. Looks fine alone, but the three together exceed the PO by ₹45,000.',
     expect: 'needs_review',
@@ -67,7 +67,7 @@ export const SAMPLES = [
     quality: 'clean',
   },
   {
-    id: 's4', file: 's4-kestrel.pdf', kind: 'Edge case',
+    id: 's4', email: {"fromName":"Kestrel Industrial Supplies","from":"ar@kestrel.example","subject":"Tax invoice KIS/26-27/0412 against PO-4610","receivedAt":"2026-09-30T12:26:00+05:30","body":"Please find our tax invoice for safety gear supplied. Note revised rates due to raw material costs."}, file: 's4-kestrel.pdf', kind: 'Edge case',
     title: 'Close, but not exact',
     blurb: 'Helmets billed 1.5% above PO price (inside tolerance), gloves 6% above (outside).',
     expect: 'needs_review',
@@ -88,7 +88,7 @@ export const SAMPLES = [
     quality: 'clean',
   },
   {
-    id: 's5', file: 's5-greenleaf-scan.pdf', kind: 'Edge case',
+    id: 's5', email: {"fromName":"Greenleaf Facility Services","from":"accounts@greenleaf.example","subject":"Sept bill","receivedAt":"2026-10-01T08:51:00+05:30","body":"Sir, scan of September housekeeping bill attached. Regards, R. Nair"}, file: 's5-greenleaf-scan.pdf', kind: 'Edge case',
     title: 'Scanned, no PO number',
     blurb: 'A phone-scan of a paper invoice. No PO printed — the process has to work out which PO it belongs to.',
     expect: 'needs_review',
@@ -110,7 +110,7 @@ export const SAMPLES = [
     confidence: { vendor_name: 0.95, invoice_number: 0.88, invoice_date: 0.9, po_reference: 0.9, line_items: 0.85, total: 0.93 },
   },
   {
-    id: 's6', file: 's6-zenith.pdf', kind: 'Edge case',
+    id: 's6', email: {"fromName":"Zenith Event Caterers","from":"zenithcaterers@gmail.example","subject":"Bill for team offsite lunch","receivedAt":"2026-09-27T19:30:00+05:30","body":"Hello, sharing the bill for the offsite lunch on 26th. Please transfer to the account below. Thanks, Zenith"}, file: 's6-zenith.pdf', kind: 'Edge case',
     title: 'Messy bill from an unknown vendor',
     blurb: 'Caterer not in vendor master, no invoice number, malformed GSTIN, tax buried inside the total.',
     expect: 'rejected',
@@ -130,22 +130,5 @@ export const SAMPLES = [
   },
 ];
 
-export function cachedExtraction(sample) {
-  const c = sample.confidence || {};
-  const inv = sample.invoice;
-  return {
-    ...inv,
-    document_quality: sample.quality,
-    confidence: {
-      vendor_name: c.vendor_name ?? 0.98,
-      invoice_number: inv.invoice_number ? (c.invoice_number ?? 0.97) : 0.95,
-      invoice_date: c.invoice_date ?? 0.97,
-      po_reference: c.po_reference ?? 0.97,
-      line_items: c.line_items ?? 0.96,
-      total: c.total ?? 0.98,
-    },
-    observations: sample.observations || [],
-  };
-}
 
 export const sampleById = (id) => SAMPLES.find((s) => s.id === id);

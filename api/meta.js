@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     send(res, 200, {
       company: COMPANY, vendors: VENDORS, purchaseOrders: PURCHASE_ORDERS, goodsReceipts: GOODS_RECEIPTS,
       ledger: await getLedger(), rules: await getRules(), defaultRules: DEFAULT_RULES,
-      samples: SAMPLES.map(({ id, file, kind, title, blurb, expect }) => ({ id, file, kind, title, blurb, expect })),
+      inbox: SAMPLES.map(({ id, file, email }) => ({ id, file, ...email })).sort((a, b) => b.receivedAt.localeCompare(a.receivedAt)),
       env: { extractor: extractorKind(), store: storeKind },
     });
   } catch (e) { send(res, 500, { error: e.message }); }

@@ -34,6 +34,7 @@ Rules:
 - observations: short notes a careful AP clerk would flag (stamps like "duplicate"/"reminder", handwritten edits, wording like "bill" vs "tax invoice", mismatched totals). Empty array if none.`;
 
 export function extractorKind() {
+  if (globalThis.__devExtract) return 'dev-fixture'; // local UI testing only (dev.mjs with DEV_FIXTURE=1); never set on Vercel
   if (process.env.ANTHROPIC_API_KEY) return 'claude';
   if (process.env.GEMINI_API_KEY) return 'gemini';
   return null;
@@ -41,6 +42,7 @@ export function extractorKind() {
 
 export async function extract({ base64, mimeType }) {
   const kind = extractorKind();
+  if (kind === 'dev-fixture') return globalThis.__devExtract(arguments[0]);
   if (kind === 'claude') return { data: await viaClaude(base64, mimeType), model: 'claude-opus-5-5' };
   if (kind === 'gemini') return { data: await viaGemini(base64, mimeType), model: process.env.GEMINI_MODEL || 'gemini-2.5-flash' };
   throw new Error('No AI key configured');

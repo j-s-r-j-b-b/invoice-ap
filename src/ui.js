@@ -27,9 +27,11 @@ const P = {
 export const Icon = ({ n, s = 16, w = 2, cls = '' }) => html`<svg class=${'ic ' + cls} width=${s} height=${s} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width=${w} stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d=${P[n]} /></svg>`;
 
 export const STATUS = {
-  approved: { label: 'Approved', cls: 'ok' },
-  needs_review: { label: 'Needs review', cls: 'warn' },
+  approved: { label: 'Approved for payment', cls: 'ok' },
+  needs_approval: { label: 'Needs approval', cls: 'warn' },
+  vendor_hold: { label: 'On hold — vendor query', cls: 'hold' },
   rejected: { label: 'Rejected', cls: 'bad' },
+  new: { label: 'Not processed', cls: '' },
   running: { label: 'Running', cls: 'run' },
   error: { label: 'Error', cls: 'bad' },
 };
