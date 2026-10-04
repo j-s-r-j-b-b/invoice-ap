@@ -303,6 +303,16 @@ async function duplicates(ctx) {
 }
 
 // ---------- decision ----------
+const TITLES = {
+  dup_file: 'Exact same file already processed', dup_number: 'Duplicate of an invoice already on record', dup_number_amount: 'Same invoice number, different amount', dup_amount: 'Possible duplicate (same amount, same vendor)',
+  no_invoice_no: 'Not a valid tax invoice (no invoice number)', no_total: 'No total found', no_date: 'Invoice date missing', no_vendor: 'Vendor name missing',
+  line_math: 'Line arithmetic is wrong', subtotal_math: 'Lines don’t add up to subtotal', total_math: 'Subtotal + tax ≠ total', tax_math: 'Tax miscalculated', tax_inclusive: 'GST not shown separately',
+  gst_type: 'Wrong GST type (IGST vs CGST+SGST)', buyer_gstin: 'Billed to the wrong GSTIN', buyer_gstin_missing: 'Our GSTIN missing', future_date: 'Dated in the future', stale: 'Invoice too old', due_before: 'Due date before invoice date', low_conf: 'AI unsure about a field — verify',
+  gstin_format: 'Invalid vendor GSTIN', unknown_vendor: 'Vendor not onboarded', gstin_mismatch: 'GSTIN differs from vendor master', vendor_blocked: 'Vendor is blocked',
+  po_not_found: 'Quoted PO doesn’t exist', po_other_vendor: 'PO belongs to another vendor', po_closed: 'PO is closed', no_po: 'No purchase order', po_inferred: 'PO inferred — needs confirmation',
+  line_not_on_po: 'Item not on the PO', price_variance: 'Price above PO rate (beyond tolerance)', qty_over_received: 'Billed more than received', qty_over_po: 'Billed more than ordered', no_grn: 'Goods receipt missing', po_overrun: 'Total billing would exceed the PO', over_limit: 'Above auto-approval limit',
+  unreadable: 'Could not read the document', error: 'Processing error',
+};
 function decide(ctx, stages) {
   const all = stages.flatMap((s) => (s.checks || []).map((c) => ({ ...c, stage: s.id })));
   const blocks = all.filter((c) => c.level === 'block'), warns = all.filter((c) => c.level === 'warn');
@@ -315,12 +325,10 @@ function decide(ctx, stages) {
     const due = x.due_date || (x.invoice_date && ctx.vendor ? new Date(new Date(x.invoice_date).getTime() + ctx.vendor.terms * 86400000).toISOString().slice(0, 10) : null);
     headline = `All checks passed — ${inr(x.total)} to ${ctx.vendor?.name}${ctx.po ? ` against ${ctx.po.po}` : ''}.`;
     nextAction = `Posted to the ledger and scheduled for payment${due ? ` on ${due}` : ''}.`;
-  } else if (status === 'rejected') {
-    headline = blocks[0].msg;
-    nextAction = 'Do not pay. Returned to the vendor with the reasons below.';
   } else {
-    headline = warns.length === 1 ? warns[0].msg : `${warns.length} issues need a person: ${[...new Set(warns.map((w) => w.code))].length > 1 ? warns.slice(0, 2).map((w) => w.msg.split(' — ')[0].split('. ')[0]).join('; ') : warns[0].msg}`;
-    nextAction = `Held in the review queue${warns.some((w) => w.vendorAsk) ? '; vendor query drafted' : ''}.`;
+    const titles = [...new Set(reasons.map((c) => TITLES[c.code] || c.msg))];
+    headline = titles.slice(0, 3).join(' · ') + (titles.length > 3 ? ` · +${titles.length - 3} more` : '');
+    nextAction = status === 'rejected' ? 'Do not pay. Returned to the vendor with the reasons below.' : `Held in the review queue${warns.some((w) => w.vendorAsk) ? '; vendor query drafted' : ''}.`;
   }
   const asks = reasons.filter((c) => c.vendorAsk);
   let email = null;

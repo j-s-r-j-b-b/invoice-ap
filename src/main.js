@@ -100,7 +100,7 @@ function Dashboard({ meta, filter }) {
             <td>${r.po || '—'}${r.poInferred ? html` <span class="tag">inferred</span>` : ''}</td>
             <td class="r num">${inr(r.total)}</td>
             <td><${Pill} status=${r.decision.status} label=${r.decision.label} /></td>
-            <td class="reason">${r.decision.status === 'approved' && !r.review ? html`<span class="muted">All checks passed</span>` : r.review ? html`<span class="muted">${r.review.who}: “${r.review.note}”</span>` : r.decision.reasons[0]?.msg}</td>
+            <td class="reason">${r.decision.status === 'approved' && !r.review ? html`<span class="muted">All checks passed</span>` : r.review ? html`<span class="muted">${r.review.who}: “${r.review.note}”</span>` : r.decision.headline}</td>
             <td class="r"><${Icon} n="arrow" s=${15} cls="muted" /></td>
           </tr>`)}</tbody></table></div>`}
     </div>
