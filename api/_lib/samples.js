@@ -2,7 +2,7 @@
 // printed on each PDF (the files in /samples are generated from it) — the pipeline never sees it;
 // it reads the PDF itself. kind/title/blurb are presenter notes only, not shown in the product.
 
-const BUYER = { name: 'Meridian Retail Pvt Ltd', gstin: '27AAECM4321J1Z3' };
+const BUYER = { name: 'Meridian Retail Pvt Ltd', gstin: '27AAECM4321J1ZJ' };
 
 export const SAMPLES = [
   {
@@ -11,7 +11,7 @@ export const SAMPLES = [
     blurb: 'Office supplies. PO referenced, goods received, prices match.',
     expect: 'approved',
     invoice: {
-      vendor_name: 'Brightline Office Supplies Pvt Ltd', vendor_gstin: '27AABCB1234F1Z5',
+      vendor_name: 'Brightline Office Supplies Pvt Ltd', vendor_gstin: '27AABCB1234F1Z8',
       vendor_address: '12 Saki Vihar Road, Andheri East, Mumbai 400072',
       invoice_number: 'BOS/26-27/0317', invoice_date: '2026-09-28', due_date: '2026-10-28', po_reference: 'PO-4501',
       buyer_name: BUYER.name, buyer_gstin: BUYER.gstin, currency: 'INR',
@@ -32,7 +32,7 @@ export const SAMPLES = [
     blurb: 'Same freight bill as INV-1042 (already paid), resent as “INV1042-A” with a new date.',
     expect: 'rejected',
     invoice: {
-      vendor_name: 'Northwind Logistics LLP', vendor_gstin: '29AAFFN5678K1Z2',
+      vendor_name: 'Northwind Logistics LLP', vendor_gstin: '29AAFFN5678K1ZJ',
       vendor_address: '88 Peenya Industrial Area, Phase 2, Bengaluru 560058',
       invoice_number: 'INV1042-A', invoice_date: '2026-09-29', due_date: '2026-10-14', po_reference: 'PO-4388',
       buyer_name: BUYER.name, buyer_gstin: BUYER.gstin, currency: 'INR',
@@ -53,7 +53,7 @@ export const SAMPLES = [
     blurb: '3rd milestone invoice. Looks fine alone, but the three together exceed the PO by ₹45,000.',
     expect: 'needs_review',
     invoice: {
-      vendor_name: 'Apex Cloud Services Pvt Ltd', vendor_gstin: '07AAKCA9012M1Z8',
+      vendor_name: 'Apex Cloud Services Pvt Ltd', vendor_gstin: '07AAKCA9012M1ZF',
       vendor_address: '4th Floor, Ambience Tower, Nehru Place, New Delhi 110019',
       invoice_number: 'APX-INV-0957', invoice_date: '2026-09-25', due_date: '2026-10-25', po_reference: 'PO-2207',
       buyer_name: BUYER.name, buyer_gstin: BUYER.gstin, currency: 'INR',
@@ -72,7 +72,7 @@ export const SAMPLES = [
     blurb: 'Helmets billed 1.5% above PO price (inside tolerance), gloves 6% above (outside).',
     expect: 'needs_review',
     invoice: {
-      vendor_name: 'Kestrel Industrial Supplies', vendor_gstin: '24AAGFK3456P1Z4',
+      vendor_name: 'Kestrel Industrial Supplies', vendor_gstin: '24AAGFK3456P1ZX',
       vendor_address: 'Plot 221, GIDC Estate, Vatva, Ahmedabad 382445',
       invoice_number: 'KIS/26-27/0412', invoice_date: '2026-09-30', due_date: '2026-11-14', po_reference: 'PO-4610',
       buyer_name: BUYER.name, buyer_gstin: BUYER.gstin, currency: 'INR',
@@ -93,7 +93,7 @@ export const SAMPLES = [
     blurb: 'A phone-scan of a paper invoice. No PO printed — the process has to work out which PO it belongs to.',
     expect: 'needs_review',
     invoice: {
-      vendor_name: 'Greenleaf Facility Services', vendor_gstin: '27AADFG7890Q1Z6',
+      vendor_name: 'Greenleaf Facility Services', vendor_gstin: '27AADFG7890Q1ZI',
       vendor_address: 'Shop 7, Hiranandani Gardens, Powai, Mumbai 400076',
       invoice_number: 'GFS-1189', invoice_date: '2026-09-30', due_date: '2026-10-30', po_reference: null,
       buyer_name: BUYER.name, buyer_gstin: BUYER.gstin, currency: 'INR',

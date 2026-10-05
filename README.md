@@ -31,6 +31,16 @@ A working accounts-payable process for **PS-1 (Finance / AP)**. Vendor invoices 
 Open cases can be **re-checked with the current rules**. The same case is re-decided (the document isn't re-read) and the earlier decision is kept in its history. A case never collides with itself in duplicate detection.
 
 
+## How sure are we about what the AI read?
+Models report ~100% confidence on almost everything, so the model's self-score is not used for decisions. Each key field is **cross-checked against independent evidence** instead:
+- **Vendor GSTIN**: the 15th character is a checksum. One misread character breaks it.
+- **Vendor name**: compared with the registered name for that GSTIN in the vendor master.
+- **PO reference**: must exist in the PO register, for that vendor.
+- **Line items / total**: qty × rate = amount, lines = subtotal, subtotal + tax = total.
+- **Dates**: valid, not in the future, before the due date.
+
+Each field is **Confirmed**, **Can't check** (we fall back on the AI's estimate, capped at 92%, or 88% for scans) or **Doubtful**. A doubtful field sends the case to a person. If a vendor query would otherwise go out, the person first checks the reading against the document, so we never blame a vendor for our own misread.
+
 ## Edge cases built
 
 1. **Disguised duplicate**: Northwind resends paid invoice INV-1042 as "INV1042-A" with a new date and a "payment reminder" stamp. Caught by number normalisation; the PO also shows as already fully billed. → **Rejected**, ₹1,45,140 stopped, vendor email drafted.
@@ -47,7 +57,6 @@ Open cases can be **re-checked with the current rules**. The same case is re-dec
 - Matching is on pre-tax value. For tax-inclusive bills, the pre-tax value is estimated at 18% and flagged.
 - Services have no goods receipt, so they get a 2-way match. Milestone/lump-sum POs are policed on cumulative value.
 - Vendor emails are **drafted, never sent**: a human stays in the loop for outbound communication.
-- AI confidence is model-reported. It is used only to route fields to a person, never to approve.
 - If the AI can't read a document (service down, unreadable scan), the case is routed to **Manual entry needed**. No invented data.
 - The inbox is a simulated mailbox containing six real PDFs. In production this would be an email webhook (e.g. a forwarding address) feeding the same /api/process endpoint.
 

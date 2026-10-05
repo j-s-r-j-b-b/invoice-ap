@@ -84,10 +84,103 @@ async function read(ctx) {
     }
   }
   ctx.x = data;
+  const assessment = assessReading(data, ctx);
+  ctx.assessment = assessment;
+  data.confidence_ai = data.confidence_ai || data.confidence;
+  data.confidence = Object.fromEntries(Object.entries(assessment).map(([k, v]) => [k, v.score]));
   const n = (data.line_items || []).length;
   checks.unshift({ level: 'pass', code: 'extracted', msg: `Read ${n} line item${n === 1 ? '' : 's'}, total ${inr(data.total)}${data.document_quality !== 'clean' ? ` (${data.document_quality} document)` : ''}.` });
   (data.observations || []).forEach((o) => checks.push({ level: 'info', code: 'observation', msg: 'AI noticed: ' + o }));
-  return stageResult(checks, `${data.vendor_name || 'Unknown vendor'} · ${data.invoice_number || 'no invoice no.'} · ${inr(data.total)}`, { source, fields: data });
+  const verified = Object.values(assessment).filter((a) => a.kind === 'verified').length;
+  const doubtful = Object.entries(assessment).filter(([, a]) => a.kind === 'contradiction');
+  checks.push(doubtful.length
+    ? { level: 'info', code: 'reading_doubt', msg: `Cross-checked the reading: ${verified} of ${Object.keys(assessment).length} key fields confirmed independently; doubt on ${doubtful.map(([k]) => FIELD_NAMES[k]).join(', ')}.` }
+    : { level: 'pass', code: 'reading_verified', msg: `Cross-checked the reading: ${verified} of ${Object.keys(assessment).length} key fields confirmed independently (checksums, vendor master, PO register, arithmetic).` });
+  return stageResult(checks, `${data.vendor_name || 'Unknown vendor'} · ${data.invoice_number || 'no invoice no.'} · ${inr(data.total)}`, { source, fields: data, assessment });
+}
+
+// ---------- how sure are we about the reading? ----------
+// The model's self-reported confidence is close to useless (it says 100% for almost everything).
+// So each key field is checked against independent evidence:
+//   verified      – evidence confirms the value (checksum passes, matches master data, maths adds up)
+//   contradiction – evidence says the value is probably misread → a person checks it
+//   unverifiable  – nothing to check against → we fall back on the AI's own estimate, capped
+export const FIELD_NAMES = { vendor_name: 'vendor name', vendor_gstin: 'vendor GSTIN', invoice_number: 'invoice number', invoice_date: 'invoice date', po_reference: 'PO reference', line_items: 'line items', total: 'total' };
+const GST_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+export function gstinChecksumOk(g) {
+  if (!GSTIN_RE.test(g || '')) return false;
+  let s = 0;
+  for (let i = 0; i < 14; i++) { const p = GST_CHARS.indexOf(g[i]) * (i % 2 ? 2 : 1); s += Math.floor(p / 36) + (p % 36); }
+  return GST_CHARS[(36 - (s % 36)) % 36] === g[14];
+}
+function assessReading(x, ctx) {
+  const ai = x.confidence_ai || x.confidence || {};
+  const scanned = x.document_quality !== 'clean' || /scanned|Image/.test(ctx.format || '');
+  const capAI = (k) => Math.min(ai[k] ?? 0.7, scanned ? 0.88 : 0.92); // never trust self-report fully
+  const A = {};
+  const set = (k, kind, score, basis) => { A[k] = { kind, score: r2(score), ai: ai[k] ?? null, basis }; };
+  const tol = ctx.rules.amountMatchTolerance;
+  const gst = (x.vendor_gstin || '').toUpperCase();
+  const master = VENDORS.find((v) => v.gstin === gst);
+
+  // GSTIN: the 15th character is a checksum of the first 14 — a single misread character breaks it.
+  if (!gst) set('vendor_gstin', 'unverifiable', capAI('vendor_name'), 'No GSTIN printed');
+  else if (gstinChecksumOk(gst)) set('vendor_gstin', 'verified', 0.99, master ? 'Checksum valid and on file in the vendor master' : 'GSTIN checksum is valid');
+  else if (GSTIN_RE.test(gst)) set('vendor_gstin', 'contradiction', 0.35, 'Checksum fails — a character was probably misread (or the vendor printed it wrong)');
+  else set('vendor_gstin', 'contradiction', 0.5, 'Not a valid 15-character GSTIN');
+
+  // Vendor name: compare with the registered name for that GSTIN.
+  if (master) {
+    const same = normName(master.name) === normName(x.vendor_name);
+    const close = similarity(master.name, x.vendor_name || '') >= 0.6;
+    if (same) set('vendor_name', 'verified', 0.99, `Matches the registered name for ${master.gstin}`);
+    else if (close) set('vendor_name', 'verified', 0.9, `Close to the registered name “${master.name}”`);
+    else set('vendor_name', 'contradiction', 0.45, `Registered name for this GSTIN is “${master.name}”`);
+  } else {
+    const byName = VENDORS.find((v) => normName(v.name) === normName(x.vendor_name));
+    if (byName) set('vendor_name', 'verified', 0.9, 'Matches a vendor in the master (by name)');
+    else set('vendor_name', 'unverifiable', capAI('vendor_name'), 'Vendor not in our master — nothing to compare against');
+  }
+
+  // Invoice number: nothing external to check; sanity-check its shape.
+  if (!x.invoice_number) set('invoice_number', 'unverifiable', capAI('invoice_number'), 'Not printed');
+  else if (!/\d/.test(x.invoice_number) || x.invoice_number.length > 30) set('invoice_number', 'contradiction', 0.5, 'Does not look like an invoice number');
+  else set('invoice_number', 'unverifiable', capAI('invoice_number'), scanned ? 'Read from a scan — cannot be cross-checked' : 'Cannot be cross-checked; format looks right');
+
+  // Dates: valid, not in the future, due date after invoice date.
+  const d = x.invoice_date;
+  if (!d) set('invoice_date', 'unverifiable', capAI('invoice_date'), 'Not printed');
+  else if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || Number.isNaN(new Date(d).getTime())) set('invoice_date', 'contradiction', 0.4, 'Not a valid date');
+  else if (x.due_date && x.due_date < d) set('invoice_date', 'contradiction', 0.6, 'Comes after the due date — one of them is probably misread');
+  else if (daysBetween(ctx.today, d) < 0) set('invoice_date', 'contradiction', 0.6, 'In the future — possibly misread');
+  else set('invoice_date', 'verified', Math.max(capAI('invoice_date'), 0.9), x.due_date ? 'Valid, in the past, and consistent with the due date' : 'Valid and in the past');
+
+  // PO reference: does it exist in the register, for this vendor?
+  if (!x.po_reference) set('po_reference', 'unverifiable', capAI('po_reference'), 'No PO printed');
+  else {
+    const po = PURCHASE_ORDERS.find((p) => poDigits(p.po) === poDigits(x.po_reference));
+    if (po && (!master || po.vendorId === master.id)) set('po_reference', 'verified', 0.99, `${po.po} exists in the PO register${master ? ' for this vendor' : ''}`);
+    else if (po) set('po_reference', 'contradiction', 0.5, `${po.po} exists but belongs to another vendor`);
+    else set('po_reference', 'contradiction', 0.5, 'Not found in the PO register — possibly misread');
+  }
+
+  // Line items: every quantity × rate = amount, and they add up to the subtotal.
+  const lines = x.line_items || [];
+  const lineOk = lines.length > 0 && lines.every((l) => l.quantity == null || l.unit_price == null || l.amount == null || near(r2(l.quantity * l.unit_price), l.amount, tol));
+  const lineSum = r2(lines.reduce((s, l) => s + (l.amount || 0), 0));
+  const sumOk = x.subtotal == null ? (x.amounts_tax_inclusive ? near(lineSum, x.total, tol) : true) : near(lineSum, x.subtotal, tol);
+  if (!lines.length) set('line_items', 'contradiction', 0.4, 'No line items read');
+  else if (lineOk && sumOk) set('line_items', 'verified', 0.98, `Every qty × rate = amount, and the ${lines.length} line(s) add up to the ${x.subtotal != null ? 'subtotal' : 'total'}`);
+  else set('line_items', 'contradiction', 0.55, !lineOk ? 'A line’s qty × rate ≠ its amount — misread or a vendor error' : 'Lines don’t add up to the subtotal — misread or a vendor error');
+
+  // Total: subtotal + taxes = total.
+  const taxSum = r2((x.tax_lines || []).reduce((s, t) => s + (t.amount || 0), 0));
+  if (x.total == null) set('total', 'contradiction', 0.3, 'No total read');
+  else if (x.subtotal != null && near(r2(x.subtotal + taxSum), x.total, tol)) set('total', 'verified', 0.99, 'Subtotal + tax = total');
+  else if (x.amounts_tax_inclusive && near(lineSum, x.total, tol)) set('total', 'verified', 0.95, 'Lines add up to the (tax-inclusive) total');
+  else if (x.subtotal == null) set('total', 'unverifiable', capAI('total'), 'No subtotal to check against');
+  else set('total', 'contradiction', 0.55, 'Subtotal + tax ≠ total — misread or a vendor error');
+  return A;
 }
 
 async function validate(ctx) {
@@ -142,9 +235,11 @@ async function validate(ctx) {
     else if (age > R.maxInvoiceAgeDays) checks.push({ level: 'warn', code: 'stale', msg: `Invoice is ${age} days old (limit ${R.maxInvoiceAgeDays}).` });
     if (x.due_date && x.due_date < x.invoice_date) checks.push({ level: 'warn', code: 'due_before', msg: 'Due date is before the invoice date.' });
   }
-  // AI confidence
-  Object.entries(x.confidence || {}).forEach(([k, v]) => {
-    if (v < R.minConfidence) checks.push({ level: 'warn', code: 'low_conf', msg: `AI is only ${Math.round(v * 100)}% sure about “${k.replace('_', ' ')}” — a person should verify it against the document.` });
+  // Reading confidence (from the cross-checks in the Read stage, not the model's self-report).
+  // Skip fields whose problem is already raised by a specific check below/elsewhere, so nothing is said twice.
+  const covered = (k, a) => ['line_items', 'total', 'po_reference'].includes(k) || (k === 'vendor_gstin' && !GSTIN_RE.test(x.vendor_gstin || '')) || (k === 'invoice_date' && /future|due date/.test(a.basis));
+  Object.entries(ctx.assessment || {}).forEach(([k, a]) => {
+    if (a.score < R.minConfidence && !covered(k, a)) checks.push({ level: 'warn', code: 'low_conf', msg: `Not sure the ${FIELD_NAMES[k]} was read correctly (${Math.round(a.score * 100)}%): ${a.basis}. A person should check it against the document.` });
   });
   if (!checks.some((c) => c.level !== 'pass' && c.level !== 'info')) checks.unshift({ level: 'pass', code: 'complete', msg: 'All required fields present; line items, tax and total add up.' });
   return stageResult(checks, checks.some((c) => c.level === 'block' || c.level === 'warn') ? `${checks.filter((c) => c.level === 'warn' || c.level === 'block').length} problem(s) found` : 'Complete and arithmetically correct', { lineSum, subtotal, taxSum });
@@ -324,7 +419,7 @@ const TITLES = {
   dup_file: 'Exact same file already processed', dup_number: 'Duplicate of an invoice already on record', dup_number_amount: 'Same invoice number, different amount', dup_amount: 'Possible duplicate (same amount, same vendor)',
   no_invoice_no: 'Not a valid tax invoice (no invoice number)', no_total: 'No total found', no_date: 'Invoice date missing', no_vendor: 'Vendor name missing',
   line_math: 'Line arithmetic is wrong', subtotal_math: 'Lines don’t add up to subtotal', total_math: 'Subtotal + tax ≠ total', tax_math: 'Tax miscalculated', tax_inclusive: 'GST not shown separately',
-  gst_type: 'Wrong GST type (IGST vs CGST+SGST)', buyer_gstin: 'Billed to the wrong GSTIN', buyer_gstin_missing: 'Our GSTIN missing', future_date: 'Dated in the future', stale: 'Invoice too old', due_before: 'Due date before invoice date', low_conf: 'AI unsure about a field — verify',
+  gst_type: 'Wrong GST type (IGST vs CGST+SGST)', buyer_gstin: 'Billed to the wrong GSTIN', buyer_gstin_missing: 'Our GSTIN missing', future_date: 'Dated in the future', stale: 'Invoice too old', due_before: 'Due date before invoice date', low_conf: 'A field may be misread — check it',
   gstin_format: 'Invalid vendor GSTIN', unknown_vendor: 'Vendor not onboarded', gstin_mismatch: 'GSTIN differs from vendor master', vendor_blocked: 'Vendor is blocked',
   po_not_found: 'Quoted PO doesn’t exist', po_other_vendor: 'PO belongs to another vendor', po_closed: 'PO is closed', no_po: 'No purchase order', po_inferred: 'PO inferred — needs confirmation',
   line_not_on_po: 'Item not on the PO', price_variance: 'Price above PO rate (beyond tolerance)', qty_over_received: 'Billed more than received', qty_over_po: 'Billed more than ordered', no_grn: 'Goods receipt missing', po_overrun: 'Total billing would exceed the PO', over_limit: 'Above auto-approval limit',
@@ -342,7 +437,10 @@ function decide(ctx, stages) {
   //   needs_approval – only an internal decision is needed (confirm inferred PO, large amount, unsure AI read)
   //   approved       – every check passed → ready to pay
   const unreadable = blocks.some((b) => b.code === 'unreadable');
-  const status = unreadable ? 'needs_approval' : blocks.length ? 'rejected' : warns.some((w) => w.vendorAsk) ? 'vendor_hold' : warns.length ? 'needs_approval' : 'approved';
+  // If the reading itself is in doubt, a person confirms it against the document BEFORE we tell the vendor
+  // they made a mistake — the mistake might be ours.
+  const doubt = Object.entries(ctx.assessment || {}).filter(([, a]) => a.kind === 'contradiction').map(([k]) => FIELD_NAMES[k]);
+  const status = unreadable ? 'needs_approval' : blocks.length ? 'rejected' : doubt.length && warns.length ? 'needs_approval' : warns.some((w) => w.vendorAsk) ? 'vendor_hold' : warns.length ? 'needs_approval' : 'approved';
   const label = unreadable ? 'Manual entry needed' : LABELS[status];
   const reasons = [...blocks, ...warns];
   let headline, nextAction;
@@ -356,7 +454,7 @@ function decide(ctx, stages) {
     nextAction = {
       rejected: 'Do not pay. Send the drafted note to the vendor so they know why.',
       vendor_hold: 'Not paid yet. Send the drafted query; when the vendor replies, re-check or decide.',
-      needs_approval: unreadable ? 'Key the invoice in manually or try a clearer copy.' : 'An approver decides — everything they need is below.',
+      needs_approval: unreadable ? 'Key the invoice in manually or try a clearer copy.' : doubt.length && warns.some((w) => w.vendorAsk) ? `First check the ${doubt.join(', ')} against the document. If it really says that, send the drafted vendor query; if it was misread, the invoice may be fine.` : 'An approver decides — everything they need is below.',
     }[status];
   }
   const asks = reasons.filter((c) => c.vendorAsk);

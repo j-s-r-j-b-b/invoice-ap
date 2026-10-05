@@ -4,17 +4,17 @@
 
 export const COMPANY = {
   name: 'Meridian Retail Pvt Ltd',
-  gstin: '27AAECM4321J1Z3',
+  gstin: '27AAECM4321J1ZJ',
   address: 'Unit 4, Lotus Corporate Park, Goregaon East, Mumbai 400063',
 };
 
 export const VENDORS = [
-  { id: 'V001', name: 'Brightline Office Supplies Pvt Ltd', gstin: '27AABCB1234F1Z5', state: 'Maharashtra', email: 'accounts@brightline.example', bank: 'HDFC Bank ••4521', terms: 30, status: 'active' },
-  { id: 'V002', name: 'Northwind Logistics LLP', gstin: '29AAFFN5678K1Z2', state: 'Karnataka', email: 'billing@northwind.example', bank: 'ICICI Bank ••7310', terms: 15, status: 'active' },
-  { id: 'V003', name: 'Apex Cloud Services Pvt Ltd', gstin: '07AAKCA9012M1Z8', state: 'Delhi', email: 'finance@apexcloud.example', bank: 'Axis Bank ••0098', terms: 30, status: 'active' },
-  { id: 'V004', name: 'Kestrel Industrial Supplies', gstin: '24AAGFK3456P1Z4', state: 'Gujarat', email: 'ar@kestrel.example', bank: 'Kotak Bank ••6642', terms: 45, status: 'active' },
-  { id: 'V005', name: 'Greenleaf Facility Services', gstin: '27AADFG7890Q1Z6', state: 'Maharashtra', email: 'accounts@greenleaf.example', bank: 'SBI ••2287', terms: 30, status: 'active' },
-  { id: 'V006', name: 'Orbit Print Solutions', gstin: '27AAHCO2345R1Z9', state: 'Maharashtra', email: 'hello@orbitprint.example', bank: 'Under verification', terms: 30, status: 'blocked', blockReason: 'Bank account change request under verification' },
+  { id: 'V001', name: 'Brightline Office Supplies Pvt Ltd', gstin: '27AABCB1234F1Z8', state: 'Maharashtra', email: 'accounts@brightline.example', bank: 'HDFC Bank ••4521', terms: 30, status: 'active' },
+  { id: 'V002', name: 'Northwind Logistics LLP', gstin: '29AAFFN5678K1ZJ', state: 'Karnataka', email: 'billing@northwind.example', bank: 'ICICI Bank ••7310', terms: 15, status: 'active' },
+  { id: 'V003', name: 'Apex Cloud Services Pvt Ltd', gstin: '07AAKCA9012M1ZF', state: 'Delhi', email: 'finance@apexcloud.example', bank: 'Axis Bank ••0098', terms: 30, status: 'active' },
+  { id: 'V004', name: 'Kestrel Industrial Supplies', gstin: '24AAGFK3456P1ZX', state: 'Gujarat', email: 'ar@kestrel.example', bank: 'Kotak Bank ••6642', terms: 45, status: 'active' },
+  { id: 'V005', name: 'Greenleaf Facility Services', gstin: '27AADFG7890Q1ZI', state: 'Maharashtra', email: 'accounts@greenleaf.example', bank: 'SBI ••2287', terms: 30, status: 'active' },
+  { id: 'V006', name: 'Orbit Print Solutions', gstin: '27AAHCO2345R1ZU', state: 'Maharashtra', email: 'hello@orbitprint.example', bank: 'Under verification', terms: 30, status: 'blocked', blockReason: 'Bank account change request under verification' },
 ];
 
 // type 'goods' → three-way match (PO + goods receipt + invoice)

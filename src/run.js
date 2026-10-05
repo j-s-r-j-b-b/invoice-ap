@@ -251,13 +251,21 @@ function StageCard({ def, st }) {
   </div>`;
 }
 
-const Conf = ({ v }) => v == null ? null : html`<span class=${'conf ' + (v >= 0.9 ? 'hi' : v >= 0.8 ? 'mid' : 'lo')} title="How sure the AI is that it read this correctly">${Math.round(v * 100)}%</span>`;
+const Conf = ({ v }) => v == null ? null : html`<span class=${'conf ' + (v >= 0.9 ? 'hi' : v >= 0.8 ? 'mid' : 'lo')} title="Confidence after cross-checking (see 'How sure are we?')">${Math.round(v * 100)}%</span>`;
 
 const DETAILS = {
   read: (d) => {
     const f = d.fields || {}, c = f.confidence || {};
     const kv = [['Vendor', f.vendor_name, c.vendor_name], ['Vendor GSTIN', f.vendor_gstin], ['Invoice no.', f.invoice_number, c.invoice_number], ['Invoice date', f.invoice_date && fmtDate(f.invoice_date), c.invoice_date], ['Due date', f.due_date && fmtDate(f.due_date)], ['PO reference', f.po_reference, c.po_reference], ['Billed to', f.buyer_name], ['Buyer GSTIN', f.buyer_gstin], ['Subtotal', f.subtotal != null ? inr(f.subtotal) : null], ['Tax', (f.tax_lines || []).map((t) => `${t.label} ${t.rate_pct ?? ''}%: ${inr(t.amount)}`).join(' · ') || (f.amounts_tax_inclusive ? 'Included in total (not shown)' : null)], ['Total', inr(f.total), c.total]];
-    return html`<div class="small muted mb">Read by ${d.source} · document quality: ${f.document_quality} · <span class="conf hi">90%+</span> sure <span class="conf mid">80–89%</span> <span class="conf lo">${'under 80%'}</span> check by eye</div>
+    const A = d.assessment || {};
+    const NAMES = { vendor_name: 'Vendor name', vendor_gstin: 'Vendor GSTIN', invoice_number: 'Invoice no.', invoice_date: 'Invoice date', po_reference: 'PO reference', line_items: 'Line items', total: 'Total' };
+    const KIND = { verified: ['ok', 'Confirmed'], contradiction: ['bad', 'Doubtful'], unverifiable: ['muted', 'Can’t check'] };
+    return html`<div class="small muted mb">Read by ${d.source} · document quality: ${f.document_quality}</div>
+      ${Object.keys(A).length > 0 && html`<div class="assess">
+        <div class="assess-h"><b>How sure are we?</b><span class="small muted">The AI's own confidence is unreliable (it says ~100% for everything), so each field is cross-checked against independent evidence.</span></div>
+        <table class="tbl"><thead><tr><th>Field</th><th>Cross-check</th><th class="r">AI said</th><th class="r">Confidence</th></tr></thead>
+        <tbody>${Object.entries(A).map(([k, a]) => html`<tr><td><b>${NAMES[k] || k}</b></td><td><span class=${'kindtag ' + KIND[a.kind][0]}>${KIND[a.kind][1]}</span> <span class="small">${a.basis}</span></td><td class="r small muted">${a.ai == null ? '—' : Math.round(a.ai * 100) + '%'}</td><td class="r"><${Conf} v=${a.score} /></td></tr>`)}</tbody></table>
+      </div>`}
       <dl class="kv">${kv.map(([k, v, cf]) => html`<div><dt>${k}</dt><dd class=${v == null || v === '—' ? 'nil' : ''}>${v ?? 'not on document'} <${Conf} v=${cf} /></dd></div>`)}</dl>
       <table class="tbl mt"><thead><tr><th>Line item <${Conf} v=${c.line_items} /></th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead>
       <tbody>${(f.line_items || []).map((l) => html`<tr><td>${l.description}</td><td class="r">${l.quantity ?? '—'}</td><td class="r">${inr(l.unit_price)}</td><td class="r">${inr(l.amount)}</td></tr>`)}</tbody></table>`;

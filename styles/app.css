@@ -285,3 +285,7 @@ nav a.on .nav-n { background: var(--surface); }
   .mail-row { grid-template-columns: 32px minmax(0, 1fr); }
   .mail-act { grid-column: 2; align-items: flex-start; flex-direction: row; flex-wrap: wrap; }
 }
+.assess { margin: 0 0 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); overflow: hidden; }
+.assess-h { display: flex; flex-direction: column; gap: 1px; padding: 10px 12px; border-bottom: 1px solid var(--line-2); }
+.kindtag { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 5px; margin-right: 4px; white-space: nowrap; }
+.kindtag.ok { background: var(--ok-bg); color: var(--ok); } .kindtag.bad { background: var(--bad-bg); color: var(--bad); } .kindtag.muted { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--line); }
