@@ -107,13 +107,19 @@ async function viaClaude(base64, mimeType) {
 
 // Tries the configured model first, then fallbacks — Google retires model names over time,
 // and a 404 / overloaded model during a live demo shouldn't stop the process.
-const GEMINI_MODELS = [process.env.GEMINI_MODEL, 'gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.5-pro'].filter(Boolean);
+// Order chosen by measurement on the free tier (Oct 2026): 3.6-flash answered every time in ~6s;
+// the newest flash models were frequently "high demand" (503) or over the free quota (429).
+const GEMINI_MODELS = [process.env.GEMINI_MODEL, 'gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.1-flash-lite'].filter(Boolean);
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 async function viaGemini(base64, mimeType) {
   let lastErr;
-  for (const model of [...new Set(GEMINI_MODELS)]) {
+  const attempts = [...new Set(GEMINI_MODELS)].flatMap((m, i) => (i === 0 ? [m, m] : [m])); // primary gets one retry
+  for (const [n, model] of attempts.entries()) {
+    if (n > 0 && /503|429|demand|overloaded|quota|rate/i.test(lastErr?.message || '')) await wait(1200);
     try {
       const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
         method: 'POST',
+        signal: AbortSignal.timeout(30000),
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
         body: JSON.stringify({
           contents: [{ role: 'user', parts: [
