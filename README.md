@@ -3,7 +3,7 @@
 A working accounts-payable process for **PS-1 (Finance / AP)**. Vendor invoices arrive in an **AP inbox** (or are uploaded: clean PDF, scanned PDF or photo). Each one becomes a **case** that is read, checked against the procurement system and decided, with every step visible as it runs.
 
 **Core principle: AI reads, rules decide, people handle exceptions.**
-- The AI (Claude Opus 5.5) does one job: turn a messy document into structured fields, with a confidence score for each key field. It never makes the decision.
+- The AI (Google Gemini, or Claude if an Anthropic key is set) does one job: turn a messy document into structured fields, with a confidence score for each key field. It never makes the decision.
 - Deterministic rules make every decision, so each outcome is explainable, repeatable and auditable. Change a rule and the next run changes. No retraining.
 - Anything the rules can't clear goes to a review queue. The reason is stated in plain English, a vendor query is drafted where the vendor needs to act, and every human action is written to an audit trail.
 
@@ -53,7 +53,7 @@ Open cases can be **re-checked with the current rules**. The same case is re-dec
 
 ## Running it
 - **Live**: Vercel (static frontend + Node serverless functions in `/api`).
-- **Environment**: `ANTHROPIC_API_KEY` (or `GEMINI_API_KEY` as a fallback). Run history goes to Upstash Redis via Vercel Storage (`KV_REST_API_URL` / `KV_REST_API_TOKEN`); without it, history falls back to a temporary store.
+- **Environment**: `GEMINI_API_KEY` (free from Google AI Studio; `ANTHROPIC_API_KEY` also supported and preferred if set). Run history goes to Upstash Redis via Vercel Storage (`KV_REST_API_URL` / `KV_REST_API_TOKEN`); without it, history falls back to a temporary store.
 - **Local**: `node dev.mjs` → http://localhost:5180 (put keys in `.env.local`). `DEV_FIXTURE=1` simulates the AI step for the six sample files, for UI work only. It is never used in production.
 - **Sample PDFs**: `samples/`, generated from `api/_lib/samples.js` by `samples/src/build.sh`.
 
